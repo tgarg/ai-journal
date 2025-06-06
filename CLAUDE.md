@@ -30,14 +30,33 @@ The core architecture centers around:
   - **MarkdownImporter** (`src/markdown_importer.py`): Import existing markdown journals with date extraction from filenames
 - **AI Integration**: 
   - **OllamaClient** (`src/ollama_client.py`): Primary interface to local LLM models via Ollama API, handling text generation, system prompts, and model management
-- **Interface Layers** (planned development order):
-  1. **CLI Interface**: Command-line tools for journal operations
-  2. **Web API**: REST API using FastAPI for frontend integration  
-  3. **Web Frontend**: Browser-based interface for journal management
-  4. **Mobile App**: Future mobile application support
+- **Interface Layers** (development status):
+  1. ✅ **CLI Interface** (`src/cli.py`): Complete command-line interface with argparse
+  2. **Web API**: REST API using FastAPI for frontend integration (planned)
+  3. **Web Frontend**: Browser-based interface for journal management (planned)
+  4. **Mobile App**: Future mobile application support (planned)
 - **Modular Design**: Built for extensibility with plans to support multiple LLM providers (starting with Ollama, expanding to Claude API)
 
 ## Development Commands
+
+### CLI Usage
+```bash
+# Main entry point for journal operations
+python journal.py <command> [options]
+
+# Available commands:
+python journal.py create [--content CONTENT] [--title TITLE] [--tags TAGS]
+python journal.py list [--limit N]
+python journal.py show <entry_id>
+python journal.py edit <entry_id> [--content CONTENT] [--title TITLE] [--tags TAGS]
+python journal.py import <directory>
+
+# Examples:
+python journal.py list --limit 10
+python journal.py show a2edc1b6
+python journal.py edit a2edc1b6 --title "Updated title"
+python journal.py import import_data/
+```
 
 ### Testing
 ```bash
@@ -58,11 +77,13 @@ pip install -e .[test]
 ```
 
 ### Test Organization
-- **Unit tests**: Fast, mocked tests for all components
-  - `tests/test_models.py`: JournalEntry model tests
-  - `tests/test_json_storage.py`: JSON storage backend tests
-  - `tests/test_markdown_importer.py`: Markdown import utility tests
-  - `tests/test_ollama_client_unit.py`: Ollama client unit tests
+- **Unit tests**: Fast, mocked tests for all components (102 tests total)
+  - `tests/test_models.py`: JournalEntry model tests (8 tests)
+  - `tests/test_json_storage.py`: JSON storage backend tests (13 tests)
+  - `tests/test_markdown_importer.py`: Markdown import utility tests (15 tests)
+  - `tests/test_journal_service.py`: Business logic layer tests (25 tests)
+  - `tests/test_cli.py`: Command-line interface tests (33 tests)
+  - `tests/test_ollama_client_unit.py`: Ollama client unit tests (8 tests)
 - **Integration tests**: Real API calls in `tests/test_ollama_client_integ.py`, marked as "slow" and skipped by default
 - Integration tests require a running Ollama server and will skip gracefully if unavailable
 
@@ -138,10 +159,24 @@ User Commands → Business Logic → Data Operations → JSON/SQLite
 ```
 
 **Separation of Concerns**:
-- **CLI**: User interaction, argument parsing, output formatting
-- **Service**: Business logic, validation, orchestration
-- **Storage**: Data persistence, CRUD operations, search
-- **Models**: Data structures and domain logic
+- **CLI** (`src/cli.py`): User interaction, argument parsing, output formatting
+- **Service** (`src/journal_service.py`): Business logic, validation, orchestration
+- **Storage** (`src/json_storage.py`): Data persistence, CRUD operations, search
+- **Models** (`src/models.py`): Data structures and domain logic
+
+### CLI Design Pattern
+**Decision**: Single script with argparse subcommands (`python journal.py <command>`)
+**Benefits**:
+- Standard Unix/Python CLI pattern familiar to users
+- Built-in help generation and argument validation
+- Extensible architecture for adding new commands
+- Clean entry point via `journal.py` wrapper script
+
+**Key Features**:
+- **Short ID support**: User-friendly 8-character identifiers (e.g., `a2edc1b6`)
+- **Table output**: Formatted display with content previews for list command
+- **Error handling**: Graceful failures with helpful error messages
+- **Encoding safety**: Handles unicode/emoji content without crashes
 
 ## Code Principles
 - Always use descriptive variable names
