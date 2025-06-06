@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(ai-journal-env/Scripts/python.exe -m pytest tests/test_journal_service.py -v)",
-      "Bash(ai-journal-env/Scripts/python.exe -m pytest -v)"
-    ],
-    "deny": []
-  }
-}
