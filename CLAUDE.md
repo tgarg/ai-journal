@@ -2,9 +2,25 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Project Overview
+
+**ai-journal** is an AI-powered journaling application that helps users develop consistent self-reflection practices that increase self-awareness, improve decision-making, and help them live life in ways that resonate deeply.
+
+### Core User Stories
+- Create and edit journal entries with AI analysis and prompts
+- Chat interface with AI from journal entries or home page
+- AI develops memory about user's life (people, challenges, goals, emotions, locations)
+- AI identifies patterns and connections between thoughts over time
+- Import existing digital journals
+
+### Technical Strategy
+- Local LLM usage via Ollama during development, Claude API as project advances
+- Build unit tests and evals for LLM outputs
+- Modular code architecture
+
 ## Project Architecture
 
-**ai-journal** is an AI-powered journaling application that helps users develop consistent self-reflection practices. The core architecture centers around:
+The core architecture centers around:
 
 - **OllamaClient** (`src/ollama_client.py`): Primary interface to local LLM models via Ollama API, handling text generation, system prompts, and model management
 - **Modular Design**: Built for extensibility with plans to support multiple LLM providers (starting with Ollama, expanding to Claude API)
