@@ -17,17 +17,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Local LLM usage via Ollama during development, Claude API as project advances
 - Build unit tests and evals for LLM outputs
 - Modular code architecture
+- **Development approach**: Backend-first with CLI interface, then web API, finally web/mobile frontend
 
 ## Project Architecture
 
 The core architecture centers around:
 
-- **OllamaClient** (`src/ollama_client.py`): Primary interface to local LLM models via Ollama API, handling text generation, system prompts, and model management
 - **Data Layer**: 
   - **JournalEntry** (`src/models.py`): Core data model with metadata and helper methods
   - **StorageBackend** (`src/storage.py`): Abstract interface for storage backends  
   - **JSONStorage** (`src/json_storage.py`): File-based storage with search capabilities
   - **MarkdownImporter** (`src/markdown_importer.py`): Import existing markdown journals with date extraction from filenames
+- **AI Integration**: 
+  - **OllamaClient** (`src/ollama_client.py`): Primary interface to local LLM models via Ollama API, handling text generation, system prompts, and model management
+- **Interface Layers** (planned development order):
+  1. **CLI Interface**: Command-line tools for journal operations
+  2. **Web API**: REST API using FastAPI for frontend integration  
+  3. **Web Frontend**: Browser-based interface for journal management
+  4. **Mobile App**: Future mobile application support
 - **Modular Design**: Built for extensibility with plans to support multiple LLM providers (starting with Ollama, expanding to Claude API)
 
 ## Development Commands
@@ -84,3 +91,6 @@ The OllamaClient implements comprehensive error handling for HTTP requests and A
 - Tests are organized with clear separation between fast unit tests and slower integration tests
 - Use pytest markers to categorize tests appropriately
 - Always write tests alongside new functionality
+
+## Code Principles
+- Always use descriptive variable names
