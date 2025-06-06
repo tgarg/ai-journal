@@ -3,9 +3,11 @@ import tempfile
 from pathlib import Path
 from datetime import datetime
 from unittest.mock import Mock
+import requests
 
 from src.models import JournalEntry
 from src.journal_service import JournalService, EntryNotFoundError, InvalidEntryError
+from src.ollama_client import OllamaClient
 
 
 class TestJournalService:
@@ -19,6 +21,16 @@ class TestJournalService:
     def service(self, mock_storage):
         """Create a JournalService with mock storage."""
         return JournalService(mock_storage)
+    
+    @pytest.fixture
+    def mock_ollama_client(self):
+        """Create a mock Ollama client."""
+        return Mock(spec=OllamaClient)
+    
+    @pytest.fixture
+    def service_with_ai(self, mock_storage, mock_ollama_client):
+        """Create a JournalService with AI capabilities."""
+        return JournalService(mock_storage, mock_ollama_client)
     
     @pytest.fixture
     def sample_entry(self):
@@ -307,3 +319,115 @@ class TestJournalServiceImport:
                 assert len(imported) == 0
                 assert skipped == 1
                 mock_storage.save_entry.assert_not_called()
+
+
+class TestJournalServiceReflectionPrompts:
+    """Test AI reflection prompt functionality."""
+    
+    @pytest.fixture
+    def mock_storage(self):
+        return Mock()
+    
+    @pytest.fixture
+    def mock_ollama_client(self):
+        return Mock(spec=OllamaClient)
+    
+    @pytest.fixture
+    def service_with_ai(self, mock_storage, mock_ollama_client):
+        return JournalService(mock_storage, mock_ollama_client)
+    
+    @pytest.fixture
+    def service_without_ai(self, mock_storage):
+        return JournalService(mock_storage)
+    
+    @pytest.fixture
+    def sample_entry(self):
+        return JournalEntry(
+            id="test-123",
+            content="Had a challenging day at work. My manager gave me feedback that was hard to hear.",
+            title="Tough Day"
+        )
+    
+    def test_generate_reflection_prompt_success(self, service_with_ai, mock_storage, mock_ollama_client, sample_entry):
+        """Test successful reflection prompt generation."""
+        # Setup
+        mock_storage.load_entry.return_value = sample_entry
+        mock_ollama_client.generate.return_value = "How did you feel when receiving that feedback?"
+        
+        # Execute
+        result = service_with_ai.generate_reflection_prompt("test-123")
+        
+        # Verify
+        assert result["reflection_prompt"] == "How did you feel when receiving that feedback?"
+        assert result["strategy_used"] == "empathetic_v1"
+        assert "timestamp" in result
+        assert "entry_preview" in result
+        
+        mock_storage.load_entry.assert_called_once_with("test-123")
+        mock_ollama_client.generate.assert_called_once()
+    
+    def test_generate_reflection_prompt_custom_strategy(self, service_with_ai, mock_storage, mock_ollama_client, sample_entry):
+        """Test reflection prompt generation with custom strategy."""
+        # Setup
+        mock_storage.load_entry.return_value = sample_entry
+        mock_ollama_client.generate.return_value = "What patterns do you notice in feedback situations?"
+        
+        # Execute
+        result = service_with_ai.generate_reflection_prompt("test-123", strategy="analytical_v1")
+        
+        # Verify
+        assert result["strategy_used"] == "analytical_v1"
+        mock_ollama_client.generate.assert_called_once()
+    
+    def test_generate_reflection_prompt_entry_not_found(self, service_with_ai, mock_storage):
+        """Test reflection prompt generation with non-existent entry."""
+        # Setup
+        mock_storage.load_entry.return_value = None
+        
+        # Execute & Verify
+        with pytest.raises(EntryNotFoundError):
+            service_with_ai.generate_reflection_prompt("nonexistent-id")
+    
+    def test_generate_reflection_prompt_no_ai_client(self, service_without_ai):
+        """Test reflection prompt generation without AI client configured."""
+        with pytest.raises(ValueError) as exc_info:
+            service_without_ai.generate_reflection_prompt("test-123")
+        
+        assert "No AI client configured" in str(exc_info.value)
+    
+    def test_generate_reflection_prompt_invalid_strategy(self, service_with_ai, mock_storage, sample_entry):
+        """Test reflection prompt generation with invalid strategy."""
+        # Setup
+        mock_storage.load_entry.return_value = sample_entry
+        
+        # Execute & Verify
+        with pytest.raises(ValueError) as exc_info:
+            service_with_ai.generate_reflection_prompt("test-123", strategy="invalid_strategy")
+        
+        assert "Unknown strategy" in str(exc_info.value)
+    
+    def test_generate_reflection_prompt_ollama_error(self, service_with_ai, mock_storage, mock_ollama_client, sample_entry):
+        """Test reflection prompt generation when Ollama fails."""
+        # Setup
+        mock_storage.load_entry.return_value = sample_entry
+        mock_ollama_client.generate.side_effect = requests.exceptions.ConnectionError("Ollama not available")
+        
+        # Execute & Verify
+        with pytest.raises(requests.exceptions.ConnectionError):
+            service_with_ai.generate_reflection_prompt("test-123")
+    
+    def test_list_reflection_strategies_success(self, service_with_ai):
+        """Test listing available reflection strategies."""
+        strategies = service_with_ai.list_reflection_strategies()
+        
+        assert isinstance(strategies, list)
+        assert "empathetic_v1" in strategies
+        assert "analytical_v1" in strategies
+        assert "socratic_v1" in strategies
+    
+    def test_list_reflection_strategies_no_ai_client(self, service_without_ai):
+        """Test listing strategies without AI client configured."""
+        with pytest.raises(ValueError) as exc_info:
+            service_without_ai.list_reflection_strategies()
+        
+        assert "No AI client configured" in str(exc_info.value)

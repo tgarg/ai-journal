@@ -14,6 +14,7 @@ from typing import Optional
 from .models import JournalEntry
 from .json_storage import JSONStorage
 from .journal_service import JournalService, EntryNotFoundError, InvalidEntryError
+from .ollama_client import OllamaClient
 
 
 class JournalCLI:
@@ -22,7 +23,14 @@ class JournalCLI:
     def __init__(self, data_dir: str = "data"):
         """Initialize CLI with storage and service."""
         self.storage = JSONStorage(data_dir)
-        self.service = JournalService(self.storage)
+        # Try to initialize with AI client, fallback to basic service if unavailable
+        try:
+            self.ollama_client = OllamaClient()
+            self.service = JournalService(self.storage, self.ollama_client)
+        except Exception:
+            # AI features unavailable, use basic service
+            self.service = JournalService(self.storage)
+            self.ollama_client = None
     
     def create_entry(self, content: str = None, title: str = None, tags: str = None) -> None:
         """Create a new journal entry."""
@@ -184,6 +192,12 @@ class JournalCLI:
             return text
         return text[:max_length-3] + "..."
     
+    def _safe_console_text(self, text: str) -> str:
+        """Convert text to console-safe encoding, replacing problematic characters."""
+        if not text:
+            return text
+        return text.encode('ascii', errors='replace').decode('ascii')
+    
     def _get_content_preview(self, content: str, max_length: int) -> str:
         """Get a preview of content, truncating at word boundaries."""
         if not content:
@@ -192,8 +206,8 @@ class JournalCLI:
         # Remove newlines and extra whitespace
         preview = " ".join(content.split())
         
-        # Remove or replace non-printable characters and emojis that might cause encoding issues
-        preview = preview.encode('ascii', errors='ignore').decode('ascii')
+        # Make console-safe
+        preview = self._safe_console_text(preview)
         
         if len(preview) <= max_length:
             return preview
@@ -206,6 +220,61 @@ class JournalCLI:
             return truncated[:last_space] + "..."
         else:
             return truncated + "..."
+    
+    def generate_reflection_prompt(self, entry_id: str, strategies: str = None) -> None:
+        """Generate reflection prompt(s) for a journal entry."""
+        try:
+            # Resolve short ID to full ID
+            full_id = self._resolve_short_id(entry_id)
+            
+            # Get the entry to show context
+            entry = self.service.get_entry(full_id)
+            
+            # Parse strategies
+            if strategies:
+                strategy_list = [s.strip() for s in strategies.split(',')]
+            else:
+                strategy_list = ["empathetic_v1"]  # Default strategy
+            
+            # Show entry context
+            print(f"Entry: {self._short_id(entry.id)} ({entry.created_at.strftime('%Y-%m-%d')})")
+            print(f"Title: {self._safe_console_text(entry.title or '(no title)')}")
+            print(f"Content: {self._get_content_preview(entry.content, 200)}")
+            print()
+            
+            # Generate prompts for each strategy
+            for strategy in strategy_list:
+                try:
+                    result = self.service.generate_reflection_prompt(full_id, strategy)
+                    
+                    print(f"Strategy: {strategy}")
+                    print(f"Reflection Prompt: \"{self._safe_console_text(result['reflection_prompt'])}\"")
+                    print()
+                    
+                except ValueError as e:
+                    if "Unknown strategy" in str(e):
+                        available = self.service.list_reflection_strategies()
+                        print(f"Error: Unknown strategy '{strategy}'. Available: {', '.join(available)}", file=sys.stderr)
+                    else:
+                        print(f"Error: {e}", file=sys.stderr)
+                    sys.exit(1)
+                except Exception as e:
+                    print(f"Error generating prompt for strategy '{strategy}': {e}", file=sys.stderr)
+                    sys.exit(1)
+            
+        except EntryNotFoundError as e:
+            print(f"Entry not found: {e}", file=sys.stderr)
+            sys.exit(1)
+        except ValueError as e:
+            if "No AI client configured" in str(e):
+                print("Error: AI features unavailable. Please ensure Ollama is running.", file=sys.stderr)
+                print("Start Ollama with: ollama serve", file=sys.stderr)
+            else:
+                print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            sys.exit(1)
 
 
 def main():
@@ -220,6 +289,7 @@ Examples:
   %(prog)s show 550e8400
   %(prog)s edit 550e8400 --title "Updated title"
   %(prog)s import ./import_data
+  %(prog)s prompt 550e8400 --strategies empathetic_v1,analytical_v1
         """
     )
     
@@ -252,6 +322,11 @@ Examples:
     import_parser = subparsers.add_parser('import', help='Import journal entries from markdown files')
     import_parser.add_argument('directory', help='Directory containing markdown files')
     
+    # Prompt command
+    prompt_parser = subparsers.add_parser('prompt', help='Generate AI reflection prompts for a journal entry')
+    prompt_parser.add_argument('entry_id', help='Entry ID (full or shortened)')
+    prompt_parser.add_argument('--strategies', help='Comma-separated strategies (e.g., empathetic_v1,analytical_v1)')
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -269,6 +344,8 @@ Examples:
         cli.edit_entry(args.entry_id, content=args.content, title=args.title, tags=args.tags)
     elif args.command == 'import':
         cli.import_entries(args.directory)
+    elif args.command == 'prompt':
+        cli.generate_reflection_prompt(args.entry_id, strategies=args.strategies)
 
 
 if __name__ == '__main__':

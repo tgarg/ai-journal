@@ -1,9 +1,11 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from pathlib import Path
 
 from .models import JournalEntry
 from .storage import StorageBackend
 from .markdown_importer import MarkdownImporter
+from .reflection import ReflectionService
+from .ollama_client import OllamaClient
 
 
 class EntryNotFoundError(Exception):
@@ -24,9 +26,12 @@ class JournalService:
     sitting between UI interfaces (CLI, web) and storage layer.
     """
     
-    def __init__(self, storage: StorageBackend):
-        """Initialize service with storage backend."""
+    def __init__(self, storage: StorageBackend, ollama_client: Optional[OllamaClient] = None):
+        """Initialize service with storage backend and optional AI client."""
         self.storage = storage
+        self._reflection_service = None
+        if ollama_client:
+            self._reflection_service = ReflectionService(ollama_client)
     
     def create_entry(self, content: str, title: str = None, tags: List[str] = None) -> JournalEntry:
         """
@@ -198,3 +203,40 @@ class JournalService:
                 return True
         
         return False
+    
+    def generate_reflection_prompt(self, entry_id: str, strategy: str = "empathetic_v1") -> Dict[str, Any]:
+        """
+        Generate an AI reflection prompt for a journal entry.
+        
+        Args:
+            entry_id: Unique identifier for the entry
+            strategy: Prompt generation strategy to use
+            
+        Returns:
+            Dict containing reflection prompt and metadata
+            
+        Raises:
+            EntryNotFoundError: If entry with given ID doesn't exist
+            ValueError: If no AI client configured or invalid strategy
+            requests.exceptions.RequestException: If AI service unavailable
+        """
+        if not self._reflection_service:
+            raise ValueError("No AI client configured. Initialize JournalService with an OllamaClient to use reflection prompts.")
+        
+        entry = self.get_entry(entry_id)
+        return self._reflection_service.generate_reflection_prompt(entry.content, strategy)
+    
+    def list_reflection_strategies(self) -> List[str]:
+        """
+        List available reflection prompt strategies.
+        
+        Returns:
+            List of strategy names
+            
+        Raises:
+            ValueError: If no AI client configured
+        """
+        if not self._reflection_service:
+            raise ValueError("No AI client configured. Initialize JournalService with an OllamaClient to use reflection prompts.")
+        
+        return self._reflection_service.list_strategies()
