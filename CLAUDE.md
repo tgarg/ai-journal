@@ -92,5 +92,56 @@ The OllamaClient implements comprehensive error handling for HTTP requests and A
 - Use pytest markers to categorize tests appropriately
 - Always write tests alongside new functionality
 
+### Development Workflow
+This project serves as a learning environment for product management skills and AI application development:
+
+**Product Management Learning Goals**:
+- Practice requirement clarification and scope management
+- Understand technical trade-offs and their business implications
+- Learn AI-specific product decisions (model selection, data pipelines, evaluation)
+- Experience realistic PM-engineering collaboration patterns
+
+**Collaborative Process**:
+- **Planning before coding**: Always discuss architectural decisions and implementation plan before writing code
+- **Technical alternatives**: Present multiple approaches with business trade-offs (performance vs. complexity, cost vs. accuracy)
+- **Decision documentation**: Explain rationale for technical choices and their product implications
+- **Iterative feedback**: Modify plans based on product requirements and technical constraints
+- **AI considerations**: Highlight where current decisions will affect future AI feature integration
+
+## Architectural Decisions
+
+### Service Layer Pattern
+The application uses a service layer (`JournalService`) to separate business logic from interface concerns:
+
+**Decision**: Add `JournalService` class between CLI/web interfaces and data storage
+**Rationale**: 
+- Enables testing business logic independently of UI
+- Prepares for future web API without code duplication
+- Centralizes validation and business rules
+- Makes storage backend swapping easier
+
+**Implementation**: Service takes `StorageBackend` via dependency injection, returns domain objects (`JournalEntry`)
+
+### CLI Design Pattern
+**Decision**: Single CLI script with subcommands (`journal.py create`, `journal.py list`)
+**Rationale**:
+- Standard Unix/Python CLI pattern
+- Extensible architecture for adding new commands
+- Familiar user experience
+- Single entry point simplifies distribution
+
+### Layered Architecture
+```
+CLI Interface → Journal Service → Storage Backend → Data Files
+     ↓               ↓                 ↓              ↓
+User Commands → Business Logic → Data Operations → JSON/SQLite
+```
+
+**Separation of Concerns**:
+- **CLI**: User interaction, argument parsing, output formatting
+- **Service**: Business logic, validation, orchestration
+- **Storage**: Data persistence, CRUD operations, search
+- **Models**: Data structures and domain logic
+
 ## Code Principles
 - Always use descriptive variable names
