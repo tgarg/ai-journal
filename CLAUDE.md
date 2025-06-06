@@ -23,6 +23,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 The core architecture centers around:
 
 - **OllamaClient** (`src/ollama_client.py`): Primary interface to local LLM models via Ollama API, handling text generation, system prompts, and model management
+- **Data Layer**: 
+  - **JournalEntry** (`src/models.py`): Core data model with metadata and helper methods
+  - **StorageBackend** (`src/storage.py`): Abstract interface for storage backends  
+  - **JSONStorage** (`src/json_storage.py`): File-based storage with search capabilities
+  - **MarkdownImporter** (`src/markdown_importer.py`): Import existing markdown journals with date extraction from filenames
 - **Modular Design**: Built for extensibility with plans to support multiple LLM providers (starting with Ollama, expanding to Claude API)
 
 ## Development Commands
@@ -30,23 +35,27 @@ The core architecture centers around:
 ### Testing
 ```bash
 # Run unit tests only (default behavior)
-pytest
+ai-journal-env/Scripts/python.exe -m pytest
 
 # Run all tests including integration tests
-pytest -m ""
+ai-journal-env/Scripts/python.exe -m pytest -m ""
 
 # Run only integration tests
-pytest -m "integration"
+ai-journal-env/Scripts/python.exe -m pytest -m "integration"
 
 # Run only slow tests (integration tests)
-pytest -m "slow"
+ai-journal-env/Scripts/python.exe -m pytest -m "slow"
 
 # Install development dependencies
 pip install -e .[test]
 ```
 
 ### Test Organization
-- **Unit tests**: Fast, mocked tests in `tests/test_ollama_client_unit.py`
+- **Unit tests**: Fast, mocked tests for all components
+  - `tests/test_models.py`: JournalEntry model tests
+  - `tests/test_json_storage.py`: JSON storage backend tests
+  - `tests/test_markdown_importer.py`: Markdown import utility tests
+  - `tests/test_ollama_client_unit.py`: Ollama client unit tests
 - **Integration tests**: Real API calls in `tests/test_ollama_client_integ.py`, marked as "slow" and skipped by default
 - Integration tests require a running Ollama server and will skip gracefully if unavailable
 
@@ -57,11 +66,21 @@ pip install -e .[test]
 
 ## Key Development Patterns
 
+### Storage Backend Pattern
+Use the `StorageBackend` abstract interface for all data persistence. The current `JSONStorage` implementation can be easily swapped for encrypted storage (SQLite + SQLCipher) when needed.
+
+### Date Extraction Priority
+The markdown importer follows this hierarchy for entry dates:
+1. Date extracted from filename patterns (2024-01-15, 20240115, etc.)
+2. Date from frontmatter `date` field
+3. File modification timestamp as fallback
+
 ### Error Handling
 The OllamaClient implements comprehensive error handling for HTTP requests and API communication. Follow this pattern when extending API functionality.
 
 ### Testing Strategy
 - Unit tests use mocking to isolate functionality
-- Integration tests verify real API behavior
+- Integration tests verify real API behavior  
 - Tests are organized with clear separation between fast unit tests and slower integration tests
 - Use pytest markers to categorize tests appropriately
+- Always write tests alongside new functionality
