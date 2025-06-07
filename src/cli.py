@@ -275,6 +275,19 @@ class JournalCLI:
         except Exception as e:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
+    
+    def run_reflection_experiment(self, args):
+        """Run experimental prompt testing - delegates to experimental module."""
+        try:
+            from src.experiments.reflection_prompts import PromptExperimenter
+            
+            experimenter = PromptExperimenter(self.service, self.service._reflection_service)
+            experimenter.run_experiment(args)
+            
+        except ImportError as e:
+            print(f"Error: Experimental module not available: {e}")
+        except Exception as e:
+            print(f"Error running experiment: {e}")
 
 
 def main():
@@ -290,6 +303,9 @@ Examples:
   %(prog)s edit 550e8400 --title "Updated title"
   %(prog)s import ./import_data
   %(prog)s prompt 550e8400 --strategies empathetic_v1,analytical_v1
+  %(prog)s reflect-experiment --entries 550e8400,a2edc1b6
+  %(prog)s reflect-experiment --recent 3
+  %(prog)s reflect-experiment --all
         """
     )
     
@@ -327,6 +343,13 @@ Examples:
     prompt_parser.add_argument('entry_id', help='Entry ID (full or shortened)')
     prompt_parser.add_argument('--strategies', help='Comma-separated strategies (e.g., empathetic_v1,analytical_v1)')
     
+    # Reflect experiment command
+    experiment_parser = subparsers.add_parser('reflect-experiment', help='Experimental prompt testing tool')
+    experiment_group = experiment_parser.add_mutually_exclusive_group(required=True)
+    experiment_group.add_argument('--entries', help='Comma-separated entry IDs to experiment with')
+    experiment_group.add_argument('--all', action='store_true', help='Run experiment on all journal entries')
+    experiment_group.add_argument('--recent', type=int, metavar='N', help='Run experiment on N most recent entries')
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -346,6 +369,8 @@ Examples:
         cli.import_entries(args.directory)
     elif args.command == 'prompt':
         cli.generate_reflection_prompt(args.entry_id, strategies=args.strategies)
+    elif args.command == 'reflect-experiment':
+        cli.run_reflection_experiment(args)
 
 
 if __name__ == '__main__':

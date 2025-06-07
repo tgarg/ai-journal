@@ -83,8 +83,10 @@ pip install -e .[test]
   - `tests/test_markdown_importer.py`: Markdown import utility tests (15 tests)
   - `tests/test_journal_service.py`: Business logic layer tests (25 tests)
   - `tests/test_cli.py`: Command-line interface tests (33 tests)
-  - `tests/test_ollama_client_unit.py`: Ollama client unit tests (8 tests)
-- **Integration tests**: Real API calls in `tests/test_ollama_client_integ.py`, marked as "slow" and skipped by default
+  - `tests/test_ollama_client.py`: Ollama client unit tests (8 tests)
+- **Integration tests**: Real API calls marked as "slow" and "integration", skipped by default
+  - `tests/test_ollama_client.py`: Ollama client integration tests (2 tests)
+  - `tests/test_reflection.py`: Reflection service integration tests
 - Integration tests require a running Ollama server and will skip gracefully if unavailable
 
 ### Project Configuration
@@ -180,3 +182,4 @@ User Commands → Business Logic → Data Operations → JSON/SQLite
 
 ## Code Principles
 - Always use descriptive variable names
+- **No emojis in code**: Do not use Unicode emojis in print statements, comments, or any code output to avoid Windows console encoding issues (UnicodeEncodeError with cp1252). Use plain text instead.
