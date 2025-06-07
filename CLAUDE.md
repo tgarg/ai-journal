@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Import existing digital journals
 
 ### Technical Strategy
-- Local LLM usage via Ollama during development, Claude API as project advances
+- Local LLM usage via Ollama during development, Gemini 2.5 Flash API for production
 - Build unit tests and evals for LLM outputs
 - Modular code architecture
 - **Development approach**: Backend-first with CLI interface, then web API, finally web/mobile frontend
@@ -30,32 +30,32 @@ The core architecture centers around:
   - **MarkdownImporter** (`src/markdown_importer.py`): Import existing markdown journals with date extraction from filenames
 - **AI Integration**: 
   - **OllamaClient** (`src/ollama_client.py`): Primary interface to local LLM models via Ollama API, handling text generation, system prompts, and model management
+  - **Experiments Framework** (`src/experiments/`): A/B testing infrastructure for AI prompt optimization and feature evaluation
 - **Interface Layers** (development status):
   1. ✅ **CLI Interface** (`src/cli.py`): Complete command-line interface with argparse
-  2. **Web API**: REST API using FastAPI for frontend integration (planned)
-  3. **Web Frontend**: Browser-based interface for journal management (planned)
-  4. **Mobile App**: Future mobile application support (planned)
-- **Modular Design**: Built for extensibility with plans to support multiple LLM providers (starting with Ollama, expanding to Claude API)
+  2. **REST API**: FastAPI layer for mobile and web interfaces (in development)
+  3. **Mobile App**: React Native app for on-the-go journaling (Phase 2 priority)
+  4. **Web Frontend**: Browser-based interface for journal management (planned)
+- **Modular Design**: Built for extensibility with plans to support multiple LLM providers (starting with Ollama, expanding to Gemini API)
 
 ## Development Commands
 
-### CLI Usage
+### API Development (Primary Interface)
 ```bash
-# Main entry point for journal operations
-python journal.py <command> [options]
+# Start FastAPI development server
+uvicorn src.api.main:app --reload
 
-# Available commands:
+# API endpoints will be available at http://localhost:8000
+# API documentation at http://localhost:8000/docs
+```
+
+### CLI Usage (Development/Testing)
+```bash
+# Basic journal operations for development
 python journal.py create [--content CONTENT] [--title TITLE] [--tags TAGS]
 python journal.py list [--limit N]
 python journal.py show <entry_id>
-python journal.py edit <entry_id> [--content CONTENT] [--title TITLE] [--tags TAGS]
 python journal.py import <directory>
-
-# Examples:
-python journal.py list --limit 10
-python journal.py show a2edc1b6
-python journal.py edit a2edc1b6 --title "Updated title"
-python journal.py import import_data/
 ```
 
 ### Testing
@@ -77,17 +77,17 @@ pip install -e .[test]
 ```
 
 ### Test Organization
-- **Unit tests**: Fast, mocked tests for all components (102 tests total)
-  - `tests/test_models.py`: JournalEntry model tests (8 tests)
-  - `tests/test_json_storage.py`: JSON storage backend tests (13 tests)
-  - `tests/test_markdown_importer.py`: Markdown import utility tests (15 tests)
-  - `tests/test_journal_service.py`: Business logic layer tests (25 tests)
-  - `tests/test_cli.py`: Command-line interface tests (33 tests)
-  - `tests/test_ollama_client.py`: Ollama client unit tests (8 tests)
+- **Unit tests**: Fast, mocked tests for all components
+  - `tests/test_models.py`: JournalEntry model tests
+  - `tests/test_json_storage.py`: JSON storage backend tests
+  - `tests/test_markdown_importer.py`: Markdown import utility tests
+  - `tests/test_journal_service.py`: Business logic layer tests
+  - `tests/test_cli.py`: Command-line interface tests
+  - `tests/test_ollama_client.py`: Ollama client unit tests
 - **Integration tests**: Real API calls marked as "slow" and "integration", skipped by default
-  - `tests/test_ollama_client.py`: Ollama client integration tests (2 tests)
+  - `tests/test_ollama_client.py`: Ollama client integration tests
   - `tests/test_reflection.py`: Reflection service integration tests
-- Integration tests require a running Ollama server and will skip gracefully if unavailable
+- Integration tests require a running LLM service and will skip gracefully if unavailable
 
 ### Project Configuration
 - **Build system**: Modern setuptools with pyproject.toml
@@ -145,40 +145,62 @@ The application uses a service layer (`JournalService`) to separate business log
 
 **Implementation**: Service takes `StorageBackend` via dependency injection, returns domain objects (`JournalEntry`)
 
-### CLI Design Pattern
-**Decision**: Single CLI script with subcommands (`journal.py create`, `journal.py list`)
+### API-First Architecture
+**Decision**: REST API as primary interface with CLI as development tool
 **Rationale**:
-- Standard Unix/Python CLI pattern
-- Extensible architecture for adding new commands
-- Familiar user experience
-- Single entry point simplifies distribution
+- Enables mobile app development
+- Supports multiple client interfaces (web, mobile, CLI)
+- Standard HTTP/JSON for cross-platform compatibility
+- Scalable for future features
 
 ### Layered Architecture
 ```
-CLI Interface → Journal Service → Storage Backend → Data Files
-     ↓               ↓                 ↓              ↓
-User Commands → Business Logic → Data Operations → JSON/SQLite
+API/CLI Interface → Journal Service → Storage Backend → Data Files
+        ↓               ↓                 ↓              ↓
+HTTP/Commands → Business Logic → Data Operations → JSON/SQLite
 ```
 
 **Separation of Concerns**:
-- **CLI** (`src/cli.py`): User interaction, argument parsing, output formatting
+- **API** (`src/api/`): HTTP endpoints, request/response handling, authentication
+- **CLI** (`src/cli.py`): Development interface, argument parsing, local operations
 - **Service** (`src/journal_service.py`): Business logic, validation, orchestration
 - **Storage** (`src/json_storage.py`): Data persistence, CRUD operations, search
 - **Models** (`src/models.py`): Data structures and domain logic
 
-### CLI Design Pattern
-**Decision**: Single script with argparse subcommands (`python journal.py <command>`)
-**Benefits**:
-- Standard Unix/Python CLI pattern familiar to users
-- Built-in help generation and argument validation
-- Extensible architecture for adding new commands
-- Clean entry point via `journal.py` wrapper script
+## Development Roadmap
 
-**Key Features**:
-- **Short ID support**: User-friendly 8-character identifiers (e.g., `a2edc1b6`)
-- **Table output**: Formatted display with content previews for list command
-- **Error handling**: Graceful failures with helpful error messages
-- **Encoding safety**: Handles unicode/emoji content without crashes
+### Phase 1: API Foundation (Current Focus)
+**Goal**: Build REST API layer with hybrid LLM support for mobile app
+- FastAPI server setup with existing service layer integration
+- Journal CRUD endpoints (create, read, update, delete entries)
+- LLM provider abstraction (OllamaProvider + GeminiProvider)
+- Basic authentication system
+- Chat/conversation API endpoints for AI interactions
+- Implement the conversational loop via API
+- A/B testing framework integration for prompt experiments
+- API documentation, testing, and cloud deployment
+
+### Phase 2: Mobile MVP
+**Goal**: Launch mobile app for on-the-go journaling with AI
+- React Native app with voice-to-text capture and entry creation
+- Basic journal browsing and viewing with API integration
+- Connect mobile app to conversation endpoints
+- Implement "go deeper" prompt flow on mobile
+- Test effectiveness of AI conversation loop in real usage
+
+### Phase 3: Intelligence Layer
+**Goal**: Add RAG and Knowledge Graph for context-aware AI
+- Vector embeddings and semantic search for journal entries
+- Enhance API conversation endpoints with retrieved context
+- A/B test RAG vs non-RAG prompt effectiveness
+- Entity extraction from journal entries
+- Pattern detection and relationship mapping
+- Integration with conversation APIs
+
+### Key Architectural Changes
+- **API-first approach**: REST API becomes primary interface, CLI becomes thin wrapper
+- **LLM Provider Abstraction**: Support both Ollama (development) and Gemini 2.5 Flash (production/mobile)
+- **Mobile-first development**: Prioritize mobile experience for daily usage and real-world testing
 
 ## Code Principles
 - Always use descriptive variable names
