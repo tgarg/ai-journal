@@ -31,6 +31,13 @@ python journal.py create/list/show/import
 pip install -e .[test]
 ```
 
+## Development Approach
+
+- Think critically about design patterns, edge cases, and maintainability
+- Prioritize security: prevent injection attacks and excessive privileges
+- Break complex features into smaller, testable components
+- Ask clarifying questions rather than making assumptions
+
 ## Code Style
 
 - Use descriptive variable names
@@ -39,6 +46,16 @@ pip install -e .[test]
 - Use abstract `StorageBackend` interface for persistence
 - Follow OllamaClient pattern for HTTP/API error handling
 - Always write tests alongside new functionality
+- Follow SOLID principles and favor composition over inheritance
+- Fail fast: detect problems early in development
+- Write meaningful logs with appropriate levels
+- Use dependency injection for better testability
+
+## Security Priorities
+
+- Validate all API inputs and sanitize data
+- Follow principle of least privilege
+- Implement proper error handling without exposing internals
 
 ## Architecture Essentials
 
