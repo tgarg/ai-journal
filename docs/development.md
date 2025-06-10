@@ -83,8 +83,49 @@ Integration tests require a running LLM service and will skip gracefully if unav
 
 ### Phase 1: API Foundation (Current Focus)
 **Goal**: Build REST API layer with hybrid LLM support for mobile app
-- FastAPI server setup with existing service layer integration
-- Journal CRUD endpoints (create, read, update, delete entries)
+
+#### Tech Stack Decision
+- **FastAPI**: Async performance, auto OpenAPI docs, mobile-first JSON APIs
+- **Pydantic**: Built-in request/response validation, type safety
+- **Uvicorn**: ASGI server with hot reload and production capabilities
+
+#### Implementation Plan (feature/api-foundation branch)
+
+**Phase 1a: Setup & Foundation**
+1. Create feature branch `feature/api-foundation`
+2. Update pyproject.toml dependencies (FastAPI, Uvicorn, Pydantic)
+3. Install dependencies with `pip install -e .[test]`
+4. Create `src/api/` directory structure
+5. Create basic `src/api/main.py` with FastAPI app
+6. Test server runs with `uvicorn src.api.main:app --reload`
+
+**Phase 1b: Core API Implementation**
+7. `src/api/models.py`: Pydantic request/response schemas
+8. `src/api/dependencies.py`: Dependency injection for JournalService
+9. `src/api/exceptions.py`: HTTP exception handlers
+10. Journal CRUD endpoints:
+    - `POST /entries`: Create journal entry
+    - `GET /entries`: List entries with pagination
+    - `GET /entries/{entry_id}`: Get specific entry
+    - `PUT /entries/{entry_id}`: Update entry
+11. AI reflection endpoints:
+    - `POST /entries/{entry_id}/reflect`: Generate reflection prompt
+    - `GET /reflection/strategies`: List available strategies
+12. `GET /health`: Service health check
+
+**Phase 1c: Testing & Documentation**
+13. Integration tests for API endpoints
+14. Error handling validation
+15. API documentation review at `/docs`
+
+**Success Criteria**
+- ✅ FastAPI server runs successfully
+- ✅ All Journal CRUD operations accessible via REST API
+- ✅ Auto-generated API docs available
+- ✅ Proper HTTP error handling
+- ✅ Integration tests passing
+
+**Future Phase 1 Work**
 - LLM provider abstraction (OllamaProvider + GeminiProvider)
 - Basic authentication system
 - Chat/conversation API endpoints for AI interactions
